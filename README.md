@@ -23,6 +23,10 @@ It can be deployed at any time, and upon deploy (or changing the 'run'
 config setting), it will attempt to contact keystone and glance and
 start a sync every minute until a successful sync occurs.
 
+The charm can optionally also send sync transfer status messages via a
+rabbitmq exchange, if it is provided with an amqp relation to a
+rabbitmq-server charm.
+
 # Requirements
 
 This charm requires a juju relation to Keystone. It also requires a
@@ -34,9 +38,64 @@ via its endpoint as published in Keystone.
     juju deploy glance-simplestreams-sync [--config optional-config.yaml]
     juju add-relation keystone glance-simplestreams-sync
 
+    # optional:
+    juju add-relation rabbitmq-server glance-simplestreams-sync
+
 # Configuration
 
-The charm has the following configuration variables:
+The charm has the following configuration variables, in alphabetical order
+
+## `cloud_name`
+
+Cloud name to be used in simplestreams index file.
+
+Default is 'glance-simplestreams-sync-openstack'.
+
+## `content_id_template`
+
+A Python-style .format() template to use when generating
+content_id properties for images uploaded to glance.
+
+The content_id is considered when matching images between the
+source and destination to decide which images to mirror.  By
+varying this value you can mirror disjoint sets of images from
+the same source into a single glance, either by using multiple
+deployments of this charm, or by using a tool such as
+sstream-mirror-glance, and they will not interfere with each
+other.
+
+Here is a more interesting example value:
+
+    com.example.customstack.{region}:ubuntu:celery-worker
+
+Currently the only available substitution is "region".  Any
+other attempted substitutions will break the sync script.
+
+
+## `frequency`
+
+`frequency` is a string, and must be one of 'hourly', 'daily',
+'weekly'.  It controls how often the sync cron job is run - it is used
+to link the script into `/etc/cron.$frequency`.
+
+## `mirror_list`
+
+`mirror_list` is a yaml-formatted list of options to be passed to
+Simplestreams. It defaults to settings for downloading images from
+cloud-images.ubuntu.com, and is not yet tested with other mirror
+locations. If you have set up your own Simplestreams mirror, you
+should be able to set the necessary configuration values.
+
+## `name_prefix`
+
+Prefixed to object name when uploading to glance.
+
+default: `auto-sync/`
+
+## `region`
+
+`region` is the OpenStack region in which the product-streams endpoint
+will be created.
 
 ## `run`
 
@@ -53,25 +112,6 @@ in swift and publish the path to product metadata via the
 *NOTE* Changing the value will only affect the next sync, and does not
  currently remove an existing product-streams service or delete
  potentially stale product data.
-
-## `frequency`
-
-`frequency` is a string, and must be one of 'hourly', 'daily',
-'weekly'.  It controls how often the sync cron job is run - it is used
-to link the script into `/etc/cron.$frequency`.
-
-## `region`
-
-`region` is the OpenStack region in which the product-streams endpoint
-will be created.
-
-## `mirror_list`
-
-`mirror_list` is a yaml-formatted list of options to be passed to
-Simplestreams. It defaults to settings for downloading images from
-cloud-images.ubuntu.com, and is not yet tested with other mirror
-locations. If you have set up your own Simplestreams mirror, you
-should be able to set the necessary configuration values.
 
 
 # Copyright

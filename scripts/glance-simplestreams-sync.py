@@ -47,6 +47,7 @@ import atexit
 import glanceclient
 from keystoneclient.v2_0 import client as keystone_client
 import keystoneclient.exceptions as keystone_exceptions
+import keystoneclient.apiclient.exceptions as keystone_api_exceptions
 import kombu
 import os
 from simplestreams.mirrors import glance, UrlMirrorReader
@@ -424,6 +425,13 @@ def main():
         if 'endpoint for image' in e.message:
             should_delete_cron_poll = False
             log.info("Glance endpoint not found, will continue polling.")
+
+    except keystone_api_exceptions.AuthorizationFailure as e:
+        # we assume this is transient, we should have correct
+        # credentials at this point
+        log.exception("Keystone auth exception during do_sync."
+                      "will continue polling")
+        should_delete_cron_poll = False
 
     except glanceclient.exc.ClientException as e:
         log.exception("Glance Client exception during do_sync."
